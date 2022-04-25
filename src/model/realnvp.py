@@ -26,6 +26,7 @@ class WeightNormConv2d(nn.Module):
         super(WeightNormConv2d, self).__init__()
 
         if weight_norm:
+            raise ValueError
             self.conv = nn.utils.weight_norm(
                 nn.Conv2d(in_dim, out_dim, kernel_size, 
                     stride=stride, padding=padding, bias=bias))
@@ -56,7 +57,7 @@ class ResidualBlock(nn.Module):
             weight_norm: True if apply weight normalization, False otherwise.
         """
         super(ResidualBlock, self).__init__()
-        
+        raise ValueError
         self.in_block = nn.Sequential(
             nn.BatchNorm2d(dim),
             nn.ReLU())
@@ -110,6 +111,7 @@ class ResidualModule(nn.Module):
         self.skip = skip
         
         if res_blocks > 0:
+            raise ValueError
             self.in_block = WeightNormConv2d(in_dim, dim, (3, 3), stride=1, 
                 padding=1, bias=True, weight_norm=weight_norm, scale=False)
             self.core_block = nn.ModuleList(
@@ -131,6 +133,7 @@ class ResidualModule(nn.Module):
                     for _ in range(res_blocks)])
         else:
             if bottleneck:
+                raise ValueError
                 self.block = nn.Sequential(
                     WeightNormConv2d(in_dim, dim, (1, 1), stride=1, padding=0, 
                         bias=False, weight_norm=weight_norm, scale=False),
@@ -146,7 +149,7 @@ class ResidualModule(nn.Module):
                 self.block = nn.Sequential(
                     WeightNormConv2d(in_dim, dim, (3, 3), stride=1, padding=1, 
                         bias=False, weight_norm=weight_norm, scale=False),
-                    nn.BatchNorm2d(dim),
+                    # nn.BatchNorm2d(dim),
                     nn.ReLU(),
                     WeightNormConv2d(dim, out_dim, (3, 3), stride=1, padding=1, 
                         bias=True, weight_norm=weight_norm, scale=True))
@@ -216,6 +219,7 @@ class AbstractCoupling(nn.Module):
         Returns:
             batch mean and variance.
         """
+        raise ValueError
         mean = torch.mean(x, dim=(0, 2, 3), keepdim=True)
         var = torch.mean((x - mean)**2, dim=(0, 2, 3), keepdim=True)
         return mean, var
@@ -232,7 +236,7 @@ class CheckerboardAdditiveCoupling(AbstractCoupling):
             hps: the set of hyperparameters.
         """
         super(CheckerboardAdditiveCoupling, self).__init__(mask_config, hps)
-        
+        raise ValueError
         self.mask = self.build_mask(size, config=mask_config).cuda()
         self.in_bn = nn.BatchNorm2d(in_out_dim)
         self.block = nn.Sequential(
@@ -295,7 +299,7 @@ class CheckerboardAffineCoupling(AbstractCoupling):
         self.mask = self.build_mask(size, config=mask_config).cuda()
         self.scale = nn.Parameter(torch.zeros(1), requires_grad=True)
         self.scale_shift = nn.Parameter(torch.zeros(1), requires_grad=True)
-        self.in_bn = nn.BatchNorm2d(in_out_dim)
+        self.in_bn = nn.Identity() # nn.BatchNorm2d(in_out_dim)
         self.block = nn.Sequential(        # 1st half of resnet: shift
             nn.ReLU(),                    # 2nd half of resnet: log_rescale
             ResidualModule(2*in_out_dim+1, mid_dim, 2*in_out_dim, 
@@ -325,6 +329,7 @@ class CheckerboardAffineCoupling(AbstractCoupling):
         # See Eq(7) and Eq(8) and Section 3.7 in real NVP
         if reverse:
             if self.coupling_bn:
+                raise ValueError
                 mean, var = self.out_bn.running_mean, self.out_bn.running_var
                 mean = mean.reshape(-1, 1, 1, 1).transpose(0, 1)
                 var = var.reshape(-1, 1, 1, 1).transpose(0, 1)
@@ -334,6 +339,7 @@ class CheckerboardAffineCoupling(AbstractCoupling):
         else:
             x = x * torch.exp(log_rescale) + shift
             if self.coupling_bn:
+                raise ValueError
                 if self.training:
                     _, var = self.batch_stat(x)
                 else:
@@ -360,6 +366,7 @@ class CheckerboardCoupling(nn.Module):
             self.coupling = CheckerboardAffineCoupling(
                 in_out_dim, mid_dim, size, mask_config, hps)
         else:
+            raise ValueError
             self.coupling = CheckerboardAdditiveCoupling(
                 in_out_dim, mid_dim, size, mask_config, hps)
 
@@ -385,7 +392,7 @@ class ChannelwiseAdditiveCoupling(AbstractCoupling):
             hps: the set of hyperparameters.
         """
         super(ChannelwiseAdditiveCoupling, self).__init__(mask_config, hps)
-
+        raise ValueError
         self.in_bn = nn.BatchNorm2d(in_out_dim//2)
         self.block = nn.Sequential(
             nn.ReLU(),
@@ -450,7 +457,7 @@ class ChannelwiseAffineCoupling(AbstractCoupling):
 
         self.scale = nn.Parameter(torch.zeros(1), requires_grad=True)
         self.scale_shift = nn.Parameter(torch.zeros(1), requires_grad=True)
-        self.in_bn = nn.BatchNorm2d(in_out_dim//2)
+        self.in_bn = nn.Identity() # nn.BatchNorm2d(in_out_dim//2)
         self.block = nn.Sequential(        # 1st half of resnet: shift
             nn.ReLU(),                    # 2nd half of resnet: log_rescale
             ResidualModule(in_out_dim, mid_dim, in_out_dim, 
@@ -481,6 +488,7 @@ class ChannelwiseAffineCoupling(AbstractCoupling):
         # See Eq(7) and Eq(8) and Section 3.7 in real NVP
         if reverse:
             if self.coupling_bn:
+                raise ValueError
                 mean, var = self.out_bn.running_mean, self.out_bn.running_var
                 mean = mean.reshape(-1, 1, 1, 1).transpose(0, 1)
                 var = var.reshape(-1, 1, 1, 1).transpose(0, 1)
@@ -489,6 +497,7 @@ class ChannelwiseAffineCoupling(AbstractCoupling):
         else:
             on = on * torch.exp(log_rescale) + shift
             if self.coupling_bn:
+                raise ValueError
                 if self.training:
                     _, var = self.batch_stat(on)
                 else:
@@ -522,6 +531,7 @@ class ChannelwiseCoupling(nn.Module):
             self.coupling = ChannelwiseAffineCoupling(
                 in_out_dim, mid_dim, mask_config, hps)
         else:
+            raise ValueError
             self.coupling = ChannelwiseAdditiveCoupling(
                 in_out_dim, mid_dim, mask_config, hps)
 
