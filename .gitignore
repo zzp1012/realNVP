@@ -5,4 +5,4 @@ __pycache__/
 # ignore trained models
 models/
 # ignore .sh (scripts)
-*.sh/
+*.sh
