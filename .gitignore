@@ -1,0 +1,6 @@
+# ignore samples
+samples/
+# ignore cache
+__pycache__/
+# ignore trained models
+models/
