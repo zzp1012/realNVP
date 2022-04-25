@@ -4,5 +4,7 @@ samples/
 __pycache__/
 # ignore trained models
 models/
+# ignore outs
+outs/
 # ignore .sh (scripts)
 *.sh
