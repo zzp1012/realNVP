@@ -3,7 +3,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Subset
 from torchvision.utils import save_image, make_grid
-import numpy as np
 
 # import internal libs
 from model.realnvp import RealNVP
