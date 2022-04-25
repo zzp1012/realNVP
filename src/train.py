@@ -7,14 +7,12 @@ import numpy as np
 
 # import internal libs
 from model.realnvp import RealNVP
-from data import DataInfo
 from data.utils import logit_transform
 from utils import get_logger
 from config import SCALE_REG
 
 def train(save_path: str,
           device: torch.device,
-          data_info: DataInfo,
           train_split: Subset,
           val_split: Subset,
           flow: RealNVP,
@@ -106,8 +104,10 @@ def train(save_path: str,
             # sample from the model
             samples = flow.sample(sample_size)
             samples, _ = logit_transform(samples, reverse=True)
+            image_path = os.path.join(save_path, f"samples")
+            os.makedirs(image_path, exist_ok=True)
             save_image(make_grid(samples),
-                       os.path.join(save_path, f"{epoch}.png"))
+                       os.path.join(image_path, f"{epoch}.png"))
 
         # save the model
         if epoch % 10 == 0 or epoch == epochs:

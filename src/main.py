@@ -120,7 +120,6 @@ def main():
     logger.info("#########training....")
     train(save_path = os.path.join(args.save_path, "train"),
           device = args.device,
-          data_info = data_info,
           train_split = train_split,
           val_split = val_split,
           flow = flow,
