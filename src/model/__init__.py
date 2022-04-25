@@ -74,5 +74,5 @@ def build_model(device: torch.device,
 
     prior = distributions.Normal(   # isotropic standard normal distribution
             torch.tensor(0.).to(device), torch.tensor(1.).to(device))
-    flow = RealNVP(datainfo=data_info, prior=prior, hps=hps).to(device)
+    flow = RealNVP(device=device, datainfo=data_info, prior=prior, hps=hps).to(device)
     return flow
