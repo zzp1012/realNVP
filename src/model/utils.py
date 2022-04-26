@@ -26,7 +26,7 @@ class BatchNorm2d(nn.Module):
                 input: torch.Tensor)-> torch.Tensor:
         if self.training:
             batch_mean = input.mean((0, 2, 3), keepdim = True).detach()
-            batch_var = input.var((0, 2, 3), unbiased = False, keepdim = True).detach()
+            batch_var = (input ** 2).mean((0, 2, 3), keepdim = True).detach()
             if self.num_batches_tracked == 0:
                 self.running_mean.copy_(batch_mean.data.flatten())
                 self.running_var.copy_(batch_var.data.flatten())
@@ -38,6 +38,7 @@ class BatchNorm2d(nn.Module):
             self.num_batches_tracked += 1
         mean_bn = torch.autograd.Variable(self.running_mean).reshape(1, self.num_features, 1, 1)
         var_bn = torch.autograd.Variable(self.running_var).reshape(1, self.num_features, 1, 1)
+        var_bn = (var_bn - mean_bn ** 2).detach()
         weight = self.weight.reshape(1, self.num_features, 1, 1)
         bias = self.bias.reshape(1, self.num_features, 1, 1)
         input_normalized = (input - mean_bn) / torch.sqrt(var_bn + self.eps)
