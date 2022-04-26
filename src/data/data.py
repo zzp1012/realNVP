@@ -42,6 +42,13 @@ def load_data(dataset: str,
         train_set = datasets.CIFAR10(root, 
             train=True, download=True, transform=transform)
         [train_split, val_split] = data.random_split(train_set, [46000, 4000])
+    elif dataset == "mnist":    # 1 x 28 x 28
+        data_info = DataInfo(dataset, 1, 28)
+        transform = transforms.Compose(
+            [transforms.ToTensor()])
+        train_set = datasets.MNIST(root,
+            train=True, download=True, transform=transform)
+        [train_split, val_split] = data.random_split(train_set, [50000, 10000])
     elif dataset == 'celeba':   # 3 x 218 x 178
         data_info = DataInfo(dataset, 3, 64)
         def CelebACrop(images):
