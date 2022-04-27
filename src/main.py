@@ -53,6 +53,8 @@ def add_args() -> argparse.Namespace:
                         help='beta1 in Adam optimizer.')
     parser.add_argument('--decay', type=float, default=0.999,
                         help='beta2 in Adam optimizer.')
+    parser.add_argument('--wd', type=float, default=0.0001,
+                        help='weight decay in Adam optimizer.')
     ## sampling settings
     parser.add_argument('--sample_size', type=int, default=64,
                         help='number of images to generate.')
@@ -72,7 +74,8 @@ def add_args() -> argparse.Namespace:
                          f"blocks{args.res_blocks}",
                          f"bottle{args.bottleneck}",
                          f"lr{args.lr}",
-                         f"bs{args.batch_size}"])
+                         f"bs{args.batch_size}",
+                         f"wd{args.wd}"])
     args.save_path = os.path.join(args.save_root, exp_name)
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
@@ -127,6 +130,7 @@ def main():
           lr = args.lr,
           momentum = args.momentum,
           decay = args.decay,
+          weight_decay = args.wd,
           epochs = args.epochs,
           sample_size = args.sample_size)
 
