@@ -20,6 +20,7 @@ def train(save_path: str,
           lr: float,
           momentum: float,
           decay: float,
+          weight_decay: float,
           epochs: int,
           sample_size: int,
           scale_reg: float = SCALE_REG) -> None:
@@ -36,6 +37,7 @@ def train(save_path: str,
         lr: learning rate.
         momentum: momentum.
         decay: learning rate decay.
+        weight_decay: the weight decay
         epochs: epochs.
         sample_size: number of samples to generate.
     
@@ -53,7 +55,8 @@ def train(save_path: str,
         batch_size=batch_size, shuffle=False, num_workers=2)
 
     # define the optimizer
-    optimizer = optim.Adamax(flow.parameters(), lr=lr, betas=(momentum, decay), eps=1e-7)
+    optimizer = optim.Adamax(flow.parameters(), lr=lr, 
+        betas=(momentum, decay), weight_decay=weight_decay, eps=1e-7)
 
     # initial the res_dict
     total_res_dict = {
