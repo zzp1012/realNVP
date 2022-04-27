@@ -1,10 +1,11 @@
-"""Utility classes for real NVP.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+
+# import internal libs
+from model.utils import BatchNorm2d
+from config import BN_FLAG
 
 class WeightNormConv2d(nn.Module):
     def __init__(self, in_dim, out_dim, kernel_size, stride=1, padding=0, 
@@ -26,7 +27,6 @@ class WeightNormConv2d(nn.Module):
         super(WeightNormConv2d, self).__init__()
 
         if weight_norm:
-            raise ValueError
             self.conv = nn.utils.weight_norm(
                 nn.Conv2d(in_dim, out_dim, kernel_size, 
                     stride=stride, padding=padding, bias=bias))
@@ -57,7 +57,7 @@ class ResidualBlock(nn.Module):
             weight_norm: True if apply weight normalization, False otherwise.
         """
         super(ResidualBlock, self).__init__()
-        raise ValueError
+
         self.in_block = nn.Sequential(
             nn.BatchNorm2d(dim),
             nn.ReLU())
@@ -111,7 +111,6 @@ class ResidualModule(nn.Module):
         self.skip = skip
         
         if res_blocks > 0:
-            raise ValueError
             self.in_block = WeightNormConv2d(in_dim, dim, (3, 3), stride=1, 
                 padding=1, bias=True, weight_norm=weight_norm, scale=False)
             self.core_block = nn.ModuleList(
@@ -133,7 +132,6 @@ class ResidualModule(nn.Module):
                     for _ in range(res_blocks)])
         else:
             if bottleneck:
-                raise ValueError
                 self.block = nn.Sequential(
                     WeightNormConv2d(in_dim, dim, (1, 1), stride=1, padding=0, 
                         bias=False, weight_norm=weight_norm, scale=False),
@@ -149,7 +147,7 @@ class ResidualModule(nn.Module):
                 self.block = nn.Sequential(
                     WeightNormConv2d(in_dim, dim, (3, 3), stride=1, padding=1, 
                         bias=False, weight_norm=weight_norm, scale=False),
-                    # nn.BatchNorm2d(dim),
+                    nn.BatchNorm2d(dim),
                     nn.ReLU(),
                     WeightNormConv2d(dim, out_dim, (3, 3), stride=1, padding=1, 
                         bias=True, weight_norm=weight_norm, scale=True))
@@ -177,7 +175,7 @@ class ResidualModule(nn.Module):
             return self.block(x)
 
 class AbstractCoupling(nn.Module):
-    def __init__(self, mask_config, hps):
+    def __init__(self, device, mask_config, hps):
         """Initializes an AbstractCoupling.
 
         Args:
@@ -185,6 +183,7 @@ class AbstractCoupling(nn.Module):
             hps: the set of hyperparameters.
         """
         super(AbstractCoupling, self).__init__()
+        self.device = device
         self.mask_config = mask_config
         self.res_blocks = hps.res_blocks
         self.bottleneck = hps.bottleneck
@@ -219,25 +218,24 @@ class AbstractCoupling(nn.Module):
         Returns:
             batch mean and variance.
         """
-        raise ValueError
         mean = torch.mean(x, dim=(0, 2, 3), keepdim=True)
         var = torch.mean((x - mean)**2, dim=(0, 2, 3), keepdim=True)
         return mean, var
 
 class CheckerboardAdditiveCoupling(AbstractCoupling):
-    def __init__(self, in_out_dim, mid_dim, size, mask_config, hps):
+    def __init__(self, device, in_out_dim, mid_dim, size, mask_config, hps):
         """Initializes a CheckerboardAdditiveCoupling.
 
         Args:
+            device: device to use.
             in_out_dim: number of input and output features.
             mid_dim: number of features in residual blocks.
             size: height/width of features.
             mask_config: mask configuration (see build_mask() for more detail).
             hps: the set of hyperparameters.
         """
-        super(CheckerboardAdditiveCoupling, self).__init__(mask_config, hps)
-        raise ValueError
-        self.mask = self.build_mask(size, config=mask_config).cuda()
+        super(CheckerboardAdditiveCoupling, self).__init__(device, mask_config, hps)
+        self.mask = self.build_mask(size, config=mask_config).to(self.device)
         self.in_bn = nn.BatchNorm2d(in_out_dim)
         self.block = nn.Sequential(
             nn.ReLU(),
@@ -284,7 +282,7 @@ class CheckerboardAdditiveCoupling(AbstractCoupling):
         return x, log_diag_J
 
 class CheckerboardAffineCoupling(AbstractCoupling):
-    def __init__(self, in_out_dim, mid_dim, size, mask_config, hps):
+    def __init__(self, device, in_out_dim, mid_dim, size, mask_config, hps):
         """Initializes a CheckerboardAffineCoupling.
 
         Args:
@@ -294,12 +292,12 @@ class CheckerboardAffineCoupling(AbstractCoupling):
             mask_config: mask configuration (see build_mask() for more detail).
             hps: the set of hyperparameters.
         """
-        super(CheckerboardAffineCoupling, self).__init__(mask_config, hps)
+        super(CheckerboardAffineCoupling, self).__init__(device, mask_config, hps)
 
-        self.mask = self.build_mask(size, config=mask_config).cuda()
+        self.mask = self.build_mask(size, config=mask_config).to(self.device)
         self.scale = nn.Parameter(torch.zeros(1), requires_grad=True)
         self.scale_shift = nn.Parameter(torch.zeros(1), requires_grad=True)
-        self.in_bn = nn.Identity() # nn.BatchNorm2d(in_out_dim)
+        self.in_bn = nn.BatchNorm2d(in_out_dim)
         self.block = nn.Sequential(        # 1st half of resnet: shift
             nn.ReLU(),                    # 2nd half of resnet: log_rescale
             ResidualModule(2*in_out_dim+1, mid_dim, 2*in_out_dim, 
@@ -329,7 +327,6 @@ class CheckerboardAffineCoupling(AbstractCoupling):
         # See Eq(7) and Eq(8) and Section 3.7 in real NVP
         if reverse:
             if self.coupling_bn:
-                raise ValueError
                 mean, var = self.out_bn.running_mean, self.out_bn.running_var
                 mean = mean.reshape(-1, 1, 1, 1).transpose(0, 1)
                 var = var.reshape(-1, 1, 1, 1).transpose(0, 1)
@@ -339,7 +336,6 @@ class CheckerboardAffineCoupling(AbstractCoupling):
         else:
             x = x * torch.exp(log_rescale) + shift
             if self.coupling_bn:
-                raise ValueError
                 if self.training:
                     _, var = self.batch_stat(x)
                 else:
@@ -350,10 +346,11 @@ class CheckerboardAffineCoupling(AbstractCoupling):
         return x, log_diag_J
 
 class CheckerboardCoupling(nn.Module):
-    def __init__(self, in_out_dim, mid_dim, size, mask_config, hps):
+    def __init__(self, device, in_out_dim, mid_dim, size, mask_config, hps):
         """Initializes a CheckerboardCoupling.
 
         Args:
+            device: device to use.
             in_out_dim: number of input and output features.
             mid_dim: number of features in residual blocks.
             size: height/width of features.
@@ -364,11 +361,10 @@ class CheckerboardCoupling(nn.Module):
 
         if hps.affine:
             self.coupling = CheckerboardAffineCoupling(
-                in_out_dim, mid_dim, size, mask_config, hps)
+                device, in_out_dim, mid_dim, size, mask_config, hps)
         else:
-            raise ValueError
             self.coupling = CheckerboardAdditiveCoupling(
-                in_out_dim, mid_dim, size, mask_config, hps)
+                device, in_out_dim, mid_dim, size, mask_config, hps)
 
     def forward(self, x, reverse=False):
         """Forward pass.
@@ -382,17 +378,17 @@ class CheckerboardCoupling(nn.Module):
         return self.coupling(x, reverse)
 
 class ChannelwiseAdditiveCoupling(AbstractCoupling):
-    def __init__(self, in_out_dim, mid_dim, mask_config, hps):
+    def __init__(self, device, in_out_dim, mid_dim, mask_config, hps):
         """Initializes a ChannelwiseAdditiveCoupling.
 
         Args:
+            device: device to use.
             in_out_dim: number of input and output features.
             mid_dim: number of features in residual blocks.
             mask_config: 1 if change the top half, 0 if change the bottom half.
             hps: the set of hyperparameters.
         """
-        super(ChannelwiseAdditiveCoupling, self).__init__(mask_config, hps)
-        raise ValueError
+        super(ChannelwiseAdditiveCoupling, self).__init__(device, mask_config, hps)
         self.in_bn = nn.BatchNorm2d(in_out_dim//2)
         self.block = nn.Sequential(
             nn.ReLU(),
@@ -444,20 +440,21 @@ class ChannelwiseAdditiveCoupling(AbstractCoupling):
         return x, log_diag_J
 
 class ChannelwiseAffineCoupling(AbstractCoupling):
-    def __init__(self, in_out_dim, mid_dim, mask_config, hps):
+    def __init__(self, device, in_out_dim, mid_dim, mask_config, hps):
         """Initializes a ChannelwiseAffineCoupling.
 
         Args:
+            device: device to use.
             in_out_dim: number of input and output features.
             mid_dim: number of features in residual blocks.
             mask_config: 1 if change the top half, 0 if change the bottom half.
             hps: the set of hyperparameters.
         """
-        super(ChannelwiseAffineCoupling, self).__init__(mask_config, hps)
+        super(ChannelwiseAffineCoupling, self).__init__(device, mask_config, hps)
 
         self.scale = nn.Parameter(torch.zeros(1), requires_grad=True)
         self.scale_shift = nn.Parameter(torch.zeros(1), requires_grad=True)
-        self.in_bn = nn.Identity() # nn.BatchNorm2d(in_out_dim//2)
+        self.in_bn = nn.BatchNorm2d(in_out_dim//2)
         self.block = nn.Sequential(        # 1st half of resnet: shift
             nn.ReLU(),                    # 2nd half of resnet: log_rescale
             ResidualModule(in_out_dim, mid_dim, in_out_dim, 
@@ -488,7 +485,6 @@ class ChannelwiseAffineCoupling(AbstractCoupling):
         # See Eq(7) and Eq(8) and Section 3.7 in real NVP
         if reverse:
             if self.coupling_bn:
-                raise ValueError
                 mean, var = self.out_bn.running_mean, self.out_bn.running_var
                 mean = mean.reshape(-1, 1, 1, 1).transpose(0, 1)
                 var = var.reshape(-1, 1, 1, 1).transpose(0, 1)
@@ -497,7 +493,6 @@ class ChannelwiseAffineCoupling(AbstractCoupling):
         else:
             on = on * torch.exp(log_rescale) + shift
             if self.coupling_bn:
-                raise ValueError
                 if self.training:
                     _, var = self.batch_stat(on)
                 else:
@@ -516,10 +511,11 @@ class ChannelwiseAffineCoupling(AbstractCoupling):
         return x, log_diag_J
 
 class ChannelwiseCoupling(nn.Module):
-    def __init__(self, in_out_dim, mid_dim, mask_config, hps):
+    def __init__(self, device, in_out_dim, mid_dim, mask_config, hps):
         """Initializes a ChannelwiseCoupling.
 
         Args:
+            device: device to use.
             in_out_dim: number of input and output features.
             mid_dim: number of features in residual blocks.
             mask_config: 1 if change the top half, 0 if change the bottom half.
@@ -529,11 +525,10 @@ class ChannelwiseCoupling(nn.Module):
 
         if hps.affine:
             self.coupling = ChannelwiseAffineCoupling(
-                in_out_dim, mid_dim, mask_config, hps)
+                device, in_out_dim, mid_dim, mask_config, hps)
         else:
-            raise ValueError
             self.coupling = ChannelwiseAdditiveCoupling(
-                in_out_dim, mid_dim, mask_config, hps)
+                device, in_out_dim, mid_dim, mask_config, hps)
 
     def forward(self, x, reverse=False):
         """Forward pass.
@@ -547,15 +542,17 @@ class ChannelwiseCoupling(nn.Module):
         return self.coupling(x, reverse)
 
 class RealNVP(nn.Module):
-    def __init__(self, datainfo, prior, hps):
+    def __init__(self, device, datainfo, prior, hps):
         """Initializes a RealNVP.
 
         Args:
+            device: the device to use.
             datainfo: information of dataset to be modeled.
             prior: prior distribution over latent space Z.
             hps: the set of hyperparameters.
         """
         super(RealNVP, self).__init__()
+        self.device = device
         self.datainfo = datainfo
         self.prior = prior
         self.hps = hps
@@ -564,12 +561,12 @@ class RealNVP(nn.Module):
         size = datainfo.size
         dim = hps.base_dim
 
-        if datainfo.name == 'cifar10':
+        if datainfo.name == 'cifar10' or datainfo.name == "mnist":
             # architecture for CIFAR-10 (down to 16 x 16 x C)
             # SCALE 1: 3 x 32 x 32
             self.s1_ckbd = self.checkerboard_combo(chan, dim, size, hps)
             self.s1_chan = self.channelwise_combo(chan*4, dim, hps)
-            self.order_matrix_1 = self.order_matrix(chan).cuda()
+            self.order_matrix_1 = self.order_matrix(chan).to(device)
             chan *= 2
             size //= 2
 
@@ -581,7 +578,7 @@ class RealNVP(nn.Module):
             # SCALE 1: 3 x 32(64) x 32(64)
             self.s1_ckbd = self.checkerboard_combo(chan, dim, size, hps)
             self.s1_chan = self.channelwise_combo(chan*4, dim*2, hps)
-            self.order_matrix_1 = self.order_matrix(chan).cuda()
+            self.order_matrix_1 = self.order_matrix(chan).to(device)
             chan *= 2
             size //= 2
             dim *= 2
@@ -589,7 +586,7 @@ class RealNVP(nn.Module):
             # SCALE 2: 6 x 16(32) x 16(32)
             self.s2_ckbd = self.checkerboard_combo(chan, dim, size, hps)
             self.s2_chan = self.channelwise_combo(chan*4, dim*2, hps)
-            self.order_matrix_2 = self.order_matrix(chan).cuda()
+            self.order_matrix_2 = self.order_matrix(chan).to(device)
             chan *= 2
             size //= 2
             dim *= 2
@@ -597,7 +594,7 @@ class RealNVP(nn.Module):
             # SCALE 3: 12 x 8(16) x 8(16)
             self.s3_ckbd = self.checkerboard_combo(chan, dim, size, hps)
             self.s3_chan = self.channelwise_combo(chan*4, dim*2, hps)
-            self.order_matrix_3 = self.order_matrix(chan).cuda()
+            self.order_matrix_3 = self.order_matrix(chan).to(device)
             chan *= 2
             size //= 2
             dim *= 2
@@ -610,7 +607,7 @@ class RealNVP(nn.Module):
                 # SCALE 4: 24 x 8 x 8
                 self.s4_ckbd = self.checkerboard_combo(chan, dim, size, hps)
                 self.s4_chan = self.channelwise_combo(chan*4, dim*2, hps)
-                self.order_matrix_4 = self.order_matrix(chan).cuda()
+                self.order_matrix_4 = self.order_matrix(chan).to(device)
                 chan *= 2
                 size //= 2
                 dim *= 2
@@ -632,15 +629,15 @@ class RealNVP(nn.Module):
         """
         if final:
             return nn.ModuleList([
-                CheckerboardCoupling(in_out_dim, mid_dim, size, 1., hps),
-                CheckerboardCoupling(in_out_dim, mid_dim, size, 0., hps),
-                CheckerboardCoupling(in_out_dim, mid_dim, size, 1., hps),
-                CheckerboardCoupling(in_out_dim, mid_dim, size, 0., hps)])
+                CheckerboardCoupling(self.device, in_out_dim, mid_dim, size, 1., hps),
+                CheckerboardCoupling(self.device, in_out_dim, mid_dim, size, 0., hps),
+                CheckerboardCoupling(self.device, in_out_dim, mid_dim, size, 1., hps),
+                CheckerboardCoupling(self.device, in_out_dim, mid_dim, size, 0., hps)])
         else:
             return nn.ModuleList([
-                CheckerboardCoupling(in_out_dim, mid_dim, size, 1., hps), 
-                CheckerboardCoupling(in_out_dim, mid_dim, size, 0., hps),
-                CheckerboardCoupling(in_out_dim, mid_dim, size, 1., hps)])
+                CheckerboardCoupling(self.device, in_out_dim, mid_dim, size, 1., hps), 
+                CheckerboardCoupling(self.device, in_out_dim, mid_dim, size, 0., hps),
+                CheckerboardCoupling(self.device, in_out_dim, mid_dim, size, 1., hps)])
         
     def channelwise_combo(self, in_out_dim, mid_dim, hps):
         """Construct a combination of channelwise coupling layers.
@@ -653,9 +650,9 @@ class RealNVP(nn.Module):
             A combination of channelwise coupling layers.
         """
         return nn.ModuleList([
-                ChannelwiseCoupling(in_out_dim, mid_dim, 0., hps),
-                ChannelwiseCoupling(in_out_dim, mid_dim, 1., hps),
-                ChannelwiseCoupling(in_out_dim, mid_dim, 0., hps)])
+                ChannelwiseCoupling(self.device, in_out_dim, mid_dim, 0., hps),
+                ChannelwiseCoupling(self.device, in_out_dim, mid_dim, 1., hps),
+                ChannelwiseCoupling(self.device, in_out_dim, mid_dim, 0., hps)])
 
     def squeeze(self, x):
         """Squeezes a C x H x W tensor into a 4C x H/2 x W/2 tensor.
