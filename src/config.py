@@ -13,6 +13,3 @@ SRC_PATH = os.path.dirname(os.path.abspath(__file__))
 
 # configs
 SCALE_REG = 5e-5 # L2 regularization strength
-
-# if use BN
-BN_FLAG = True
