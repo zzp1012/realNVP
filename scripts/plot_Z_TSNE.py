@@ -9,7 +9,7 @@ from sklearn.manifold import TSNE
 
 # Changable configs
 MODEL_PATH = "NEED TO BE FILLED"
-EPOCH = 100
+EPOCH = 50
 SAMPLE_NUM = 1000
 
 # import internal libs
@@ -21,10 +21,10 @@ from model import build_model
 DATASET = "mnist"
 DEVICE = torch.device("cuda:0")
 BASE_DIM = 64
-RES_BLOCKS = 0
+RES_BLOCKS = 8
 BOTTLENECK = 0
-SKIP = 0
-WEIGHT_NORM = 0
+SKIP = 1
+WEIGHT_NORM = 1
 COUPLING_BN = 0
 AFFINE = 1
 BATCH_SIZE = 64
@@ -72,6 +72,12 @@ labels = np.array(label_lst)[:SAMPLE_NUM]
 # now t-SNE
 tsne = TSNE(n_components=2)
 Zs_tsne = tsne.fit_transform(Zs_df)
+outlier1 = np.where(np.abs(Zs_tsne[:, 0] - Zs_tsne[:, 0].mean()) > (3*Zs_tsne[:, 0].std()))[0]
+outlier2 = np.where(np.abs(Zs_tsne[:, 1] - Zs_tsne[:, 1].mean()) > (3*Zs_tsne[:, 1].std()))[0]
+outlier = set(np.concatenate([outlier1, outlier2]))
+print(outlier1, outlier2)
+print(outlier)
+
 data_tsne = np.vstack((Zs_tsne.T, labels)).T
 tsne_df = pd.DataFrame(data_tsne, columns=['Dim1', 'Dim2', 'class'])
 tsne_df['class'] = tsne_df['class'].astype(str)
