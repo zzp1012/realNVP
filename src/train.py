@@ -57,7 +57,7 @@ def train(save_path: str,
         batch_size=batch_size, shuffle=False, num_workers=2)
 
     # define the optimizer
-    optimizer = optim.Adam(flow.parameters(), lr=lr, 
+    optimizer = optim.Adamax(flow.parameters(), lr=lr, 
         betas=(momentum, decay), weight_decay=weight_decay, eps=1e-7)
 
     # initial the res_dict
