@@ -3,9 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-# import internal libs
-from model.utils import BatchNorm2d
-from config import BN_FLAG
 
 class WeightNormConv2d(nn.Module):
     def __init__(self, in_dim, out_dim, kernel_size, stride=1, padding=0, 
