@@ -48,7 +48,9 @@ def load_data(dataset: str,
             [transforms.ToTensor()])
         train_set = datasets.MNIST(root,
             train=True, download=True, transform=transform)
-        [train_split, val_split] = data.random_split(train_set, [50000, 10000])
+        test_set = datasets.MNIST(root, 
+            train=False, download=True, transform=transform)
+        [train_split, val_split] = [train_set, test_set]
     elif dataset == 'celeba':   # 3 x 218 x 178
         data_info = DataInfo(dataset, 3, 64)
         def CelebACrop(images):
