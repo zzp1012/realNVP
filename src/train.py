@@ -1,4 +1,5 @@
 import os, torch
+import numpy as np
 import pandas as pd
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -13,6 +14,7 @@ from config import SCALE_REG
 
 def train(save_path: str,
           device: torch.device,
+          data_info,
           train_split: Subset,
           val_split: Subset,
           flow: RealNVP,
@@ -55,16 +57,19 @@ def train(save_path: str,
         batch_size=batch_size, shuffle=False, num_workers=2)
 
     # define the optimizer
-    optimizer = optim.Adamax(flow.parameters(), lr=lr, 
+    optimizer = optim.Adam(flow.parameters(), lr=lr, 
         betas=(momentum, decay), weight_decay=weight_decay, eps=1e-7)
 
     # initial the res_dict
     total_res_dict = {
         "train_loss": [],
         "train_log_ll": [],
+        "train_bits_per_dim": [],
         "val_loss": [],
         "val_log_ll": [],
     }
+
+    image_size = data_info.channel * data_info.size**2
 
     # start
     for epoch in range(1, epochs+1):
@@ -72,7 +77,7 @@ def train(save_path: str,
 
         # train
         flow.train()
-        train_loss_lst, train_log_ll_lst = [], []
+        train_loss_lst, train_log_ll_lst, train_bit_per_dim_lst = [], [], []
         for batch_idx, data_ in enumerate(train_loader, 1):
             x, _ = data_
             # log-determinant of Jacobian from the logit transform
@@ -95,19 +100,24 @@ def train(save_path: str,
             # record the loss and log-likelihood
             train_loss_lst.append(loss.item())
             train_log_ll_lst.append(log_ll.item())
-
+            bit_per_dim = (-log_ll.item() + np.log(256.) * image_size) \
+                    / (image_size * np.log(2.))
+            train_bit_per_dim_lst.append(bit_per_dim)
             if batch_idx % 10 == 0:
-                logger.info('[%d/%d]\tloss: %.3f\tlog-ll: %.3f' % \
-                    (batch_idx*batch_size, len(train_loader.dataset), loss.item(), log_ll.item()))
+                logger.info('[%d/%d]\tloss: %.3f\tlog-ll: %.3f\tbits/dim: %.3f' % \
+                    (batch_idx*batch_size, len(train_loader.dataset), 
+                        loss.item(), log_ll.item(), bit_per_dim))
         
         # take average
         train_loss = sum(train_loss_lst) / len(train_loss_lst)
         train_log_ll = sum(train_log_ll_lst) / len(train_log_ll_lst)
-        logger.info(f"On avergage - train loss: {train_loss:.3f}\tlog-ll: {train_log_ll:.3f}")
+        train_bit_per_dim = sum(train_bit_per_dim_lst) / len(train_bit_per_dim_lst)
+        logger.info(f"On avergage - train loss: {train_loss:.3f}\tlog-ll: \
+            {train_log_ll:.3f}\tbits/dim: {train_bit_per_dim:.3f}")
 
         # evaluation
         flow.eval()
-        val_loss_lst, val_log_ll_lst = [], []
+        val_loss_lst, val_log_ll_lst, val_bit_per_dim_lst = [], [], []
         with torch.no_grad():
             for batch_idx, data_ in enumerate(val_loader, 1):
                 x, _ = data_
@@ -126,6 +136,9 @@ def train(save_path: str,
                 # record the loss and log-likelihood
                 val_loss_lst.append(loss.item())
                 val_log_ll_lst.append(log_ll.item())
+                bit_per_dim = (-log_ll.item() + np.log(256.) * image_size) \
+                    / (image_size * np.log(2.))
+                val_bit_per_dim_lst.append(bit_per_dim)
 
             # sample from the model
             samples = flow.sample(sample_size)
@@ -138,13 +151,17 @@ def train(save_path: str,
         # take average
         val_loss = sum(val_loss_lst) / len(val_loss_lst)
         val_log_ll = sum(val_log_ll_lst) / len(val_log_ll_lst)
-        logger.info(f"On avergage - val loss: {val_loss:.3f}\tlog-ll: {val_log_ll:.3f}")
+        val_bit_per_dim = sum(val_bit_per_dim_lst) / len(val_bit_per_dim_lst)
+        logger.info(f"On avergage - val loss: {val_loss:.3f}\tlog-ll: \
+            {val_log_ll:.3f}\tbits/dim: {val_bit_per_dim:.3f}")
 
         res_dict = {
             "train_loss": [train_loss],
             "train_log_ll": [train_log_ll],
+            "train_bits_per_dim": [train_bit_per_dim],
             "val_loss": [val_loss],
             "val_log_ll": [val_log_ll],
+            "val_bits_per_dim": [val_bit_per_dim],
         }
         total_res_dict = update_dict(res_dict, total_res_dict)
 
