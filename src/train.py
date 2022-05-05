@@ -1,14 +1,15 @@
-import os, torch
+import os
 import random
 import numpy as np
 import pandas as pd
+import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Subset
 from torchvision.utils import save_image, make_grid
 
 # import internal libs
-from model.realnvp import RealNVP
 from data.utils import logit_transform
 from utils import get_logger, update_dict
 from config import SCALE_REG
@@ -57,7 +58,7 @@ def train(save_path: str,
           data_info,
           train_split: Subset,
           val_split: Subset,
-          flow: RealNVP,
+          flow: nn.Module,
           batch_size: int,
           lr: float,
           momentum: float,
