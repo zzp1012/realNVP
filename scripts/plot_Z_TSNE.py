@@ -9,8 +9,8 @@ from sklearn.manifold import TSNE
 
 # Changable configs
 MODEL_PATH = "NEED TO BE FILLED"
-EPOCH = 50
-SAMPLE_NUM = 1000
+EPOCH = 200
+SAMPLE_NUM = 500
 
 # import internal libs
 sys.path.insert(0, os.path.join(os.path.dirname(MODEL_PATH), "src/"))
@@ -25,9 +25,10 @@ RES_BLOCKS = 8
 BOTTLENECK = 0
 SKIP = 1
 WEIGHT_NORM = 1
-COUPLING_BN = 0
+COUPLING_BN = 1
 AFFINE = 1
 BATCH_SIZE = 64
+BN_TYPE = "ln"
 
 # load data
 _, val_split, data_info = load_data(dataset = DATASET)
@@ -43,10 +44,12 @@ flow = build_model(device = DEVICE,
                     skip = SKIP,
                     weight_norm = WEIGHT_NORM,
                     coupling_bn = COUPLING_BN,
-                    affine = AFFINE)
+                    affine = AFFINE,
+                    bn_type = BN_TYPE)
 print(flow)
 flow.load_state_dict(torch.load(MODEL_PATH + f"/model_epoch{EPOCH}.pt"))
 flow = flow.double()
+flow.eval()
 
 z_lst, label_lst = [], []
 for batch_idx, data_ in enumerate(val_loader, 1):
