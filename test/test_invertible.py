@@ -44,7 +44,7 @@ flow.load_state_dict(torch.load(MODEL_PATH))
 flow = flow.double()
 
 
-flow.()
+flow.eval()
 for batch_idx, data_ in enumerate(val_loader, 1):
     x, lbls = data_
     # log-determinant of Jacobian from the logit transform
