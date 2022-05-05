@@ -10,3 +10,4 @@ outs/
 *.sh
 # ignore data
 data/
+!src/data/

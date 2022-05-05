@@ -41,7 +41,9 @@ def load_data(dataset: str,
              transforms.ToTensor()])
         train_set = datasets.CIFAR10(root, 
             train=True, download=True, transform=transform)
-        [train_split, val_split] = data.random_split(train_set, [46000, 4000])
+        test_set = datasets.CIFAR10(root,
+            train=False, download=True, transform=transforms.ToTensor())
+        [train_split, val_split] = [train_set, test_set]
     elif dataset == "mnist":    # 1 x 28 x 28
         data_info = DataInfo(dataset, 1, 28)
         transform = transforms.Compose(

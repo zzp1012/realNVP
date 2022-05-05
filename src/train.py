@@ -41,7 +41,6 @@ def create_batches(dataset: Subset,
         batch_indices = []
         for i, label in enumerate(range(len(dataset.classes))):
             indices = np.where(labels == label)[0]
-            print(indices.shape)
             random.Random(seed + i).shuffle(indices)
             batch_indices.append(np.array_split(indices, len(indices) // batch_size)[0])
     else:
@@ -49,7 +48,6 @@ def create_batches(dataset: Subset,
     # create the batches
     batches = []
     for idx in batch_indices:
-        print(labels[idx])
         batches.append((inputs[idx], labels[idx]))
     return batches
 
