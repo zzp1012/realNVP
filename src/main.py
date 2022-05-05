@@ -42,6 +42,8 @@ def add_args() -> argparse.Namespace:
                         help='whether to apply batchnorm after coupling layers.')
     parser.add_argument('--affine', type=int, default=1,
                         help='whether to use affine coupling.')
+    parser.add_argument('--bn_type', type=str, default='bn',
+                        help='type of bn.')
     ## training settings
     parser.add_argument('--method', type=str, default='random',
                         help='method to create batches.')
@@ -75,6 +77,7 @@ def add_args() -> argparse.Namespace:
                          f"seed{args.seed}",
                          f"blocks{args.res_blocks}",
                          f"bottle{args.bottleneck}",
+                         f"{args.bn_type}",
                          f"{args.method}",
                          f"lr{args.lr}",
                          f"bs{args.batch_size}",
@@ -120,7 +123,8 @@ def main():
                        skip = args.skip,
                        weight_norm = args.weight_norm,
                        coupling_bn = args.coupling_bn,
-                       affine = args.affine)
+                       affine = args.affine,
+                       bn_type = args.bn_type)
     logger.info(flow)
 
     # train
