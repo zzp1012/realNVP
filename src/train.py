@@ -1,4 +1,5 @@
 import os, torch
+import random
 import numpy as np
 import pandas as pd
 import torch.optim as optim
@@ -11,6 +12,47 @@ from model.realnvp import RealNVP
 from data.utils import logit_transform
 from utils import get_logger, update_dict
 from config import SCALE_REG
+
+def create_batches(dataset: Subset,
+                   batch_size: int,
+                   seed: int,
+                   method: str) -> list:
+    """create the batches
+
+    Args:
+        dataset: the dataset
+        batch_size: the batch size
+        seed: the seed
+        method: the method to create batches
+
+    Return:
+        the batches
+    """
+    logger = get_logger(f"{__name__}.create_batches")
+    # use dataloader
+    inputs, labels = next(iter(DataLoader(dataset, batch_size=len(dataset))))
+    logger.debug(f"inputs shape: {inputs.shape}; labels shape: {labels.shape}")
+    # create the indices
+    if method == "random":
+        indices = np.arange(len(dataset))
+        random.Random(seed).shuffle(indices)
+        batch_indices = np.array_split(indices, len(dataset) // batch_size)
+    elif method == "label":
+        batch_indices = []
+        for i, label in enumerate(range(len(dataset.classes))):
+            indices = np.where(labels == label)[0]
+            print(indices.shape)
+            random.Random(seed + i).shuffle(indices)
+            batch_indices.append(np.array_split(indices, len(indices) // batch_size)[0])
+    else:
+        raise ValueError(f"unknown method: {method}")
+    # create the batches
+    batches = []
+    for idx in batch_indices:
+        print(labels[idx])
+        batches.append((inputs[idx], labels[idx]))
+    return batches
+
 
 def train(save_path: str,
           device: torch.device,
@@ -25,6 +67,7 @@ def train(save_path: str,
           weight_decay: float,
           epochs: int,
           sample_size: int,
+          method: str,
           scale_reg: float = SCALE_REG) -> None:
     """train realNVP model.
 
@@ -41,6 +84,7 @@ def train(save_path: str,
         decay: learning rate decay.
         weight_decay: the weight decay
         epochs: epochs.
+        method: the method to create batches.
         sample_size: number of samples to generate.
     
     Returns:
@@ -51,8 +95,6 @@ def train(save_path: str,
         os.makedirs(save_path)
     
     # define the dataloader
-    train_loader = DataLoader(train_split,
-        batch_size=batch_size, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_split,
         batch_size=batch_size, shuffle=False, num_workers=2)
 
@@ -78,7 +120,8 @@ def train(save_path: str,
         # train
         flow.train()
         train_loss_lst, train_log_ll_lst, train_bit_per_dim_lst = [], [], []
-        for batch_idx, data_ in enumerate(train_loader, 1):
+        train_batches = create_batches(train_split, batch_size, epoch, method)
+        for batch_idx, data_ in enumerate(train_batches, 1):
             x, _ = data_
             # log-determinant of Jacobian from the logit transform
             x, log_det = logit_transform(x)
@@ -105,8 +148,7 @@ def train(save_path: str,
             train_bit_per_dim_lst.append(bit_per_dim)
             if batch_idx % 10 == 0:
                 logger.info('[%d/%d]\tloss: %.3f\tlog-ll: %.3f\tbits/dim: %.3f' % \
-                    (batch_idx*batch_size, len(train_loader.dataset), 
-                        loss.item(), log_ll.item(), bit_per_dim))
+                    (batch_idx, len(train_batches), loss.item(), log_ll.item(), bit_per_dim))
         
         # take average
         train_loss = sum(train_loss_lst) / len(train_loss_lst)

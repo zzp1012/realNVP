@@ -43,6 +43,8 @@ def add_args() -> argparse.Namespace:
     parser.add_argument('--affine', type=int, default=1,
                         help='whether to use affine coupling.')
     ## training settings
+    parser.add_argument('--method', type=str, default='random',
+                        help='method to create batches.')
     parser.add_argument('--epochs', type=int, default=500,
                         help='maximum number of training epoches.')
     parser.add_argument('--batch_size', type=int, default=64,
@@ -73,6 +75,7 @@ def add_args() -> argparse.Namespace:
                          f"seed{args.seed}",
                          f"blocks{args.res_blocks}",
                          f"bottle{args.bottleneck}",
+                         f"{args.method}",
                          f"lr{args.lr}",
                          f"bs{args.batch_size}",
                          f"wd{args.wd}"])
@@ -134,6 +137,7 @@ def main():
           decay = args.decay,
           weight_decay = args.wd,
           epochs = args.epochs,
+          method = args.method,
           sample_size = args.sample_size)
 
 
