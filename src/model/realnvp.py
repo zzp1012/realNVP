@@ -538,7 +538,7 @@ class ChannelwiseCoupling(nn.Module):
         """
         return self.coupling(x, reverse)
 
-class RealNVP(nn.Module):
+class RealNVP_BN(nn.Module):
     def __init__(self, device, datainfo, prior, hps):
         """Initializes a RealNVP.
 
@@ -548,7 +548,7 @@ class RealNVP(nn.Module):
             prior: prior distribution over latent space Z.
             hps: the set of hyperparameters.
         """
-        super(RealNVP, self).__init__()
+        super(RealNVP_BN, self).__init__()
         self.device = device
         self.datainfo = datainfo
         self.prior = prior
