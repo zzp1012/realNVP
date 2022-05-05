@@ -8,3 +8,5 @@ models/
 outs/
 # ignore .sh (scripts)
 *.sh
+# ignore data
+data/
