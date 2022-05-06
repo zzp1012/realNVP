@@ -94,8 +94,9 @@ for idx_0, idx_1 in tqdm(zip(indices_0, indices_1)):
 
     # log-likelihood
     log_ll, _ = flow(x)
-
     log_ll = log_ll + log_det
+
+    # update the log_ll_lst
     log_ll_lst.append(log_ll.item())
 log_ll_lst = np.array(log_ll_lst)
 
