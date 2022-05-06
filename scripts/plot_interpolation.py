@@ -6,12 +6,12 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 # Changable configs
-MODEL_PATH = "NEED TO BE FILLED"
+RES_PATH = "NEED TO BE FILLED"
 EPOCH = 6000
 SAMPLE_NUM = 980
 
 # import internal libs
-sys.path.insert(0, os.path.join(os.path.dirname(MODEL_PATH), "src/"))
+sys.path.insert(0, os.path.join(os.path.dirname(RES_PATH), "src/"))
 from data import load_data
 from data.utils import logit_transform
 from model import build_model
@@ -27,7 +27,7 @@ WEIGHT_NORM = 1
 COUPLING_BN = 1
 AFFINE = 1
 BATCH_SIZE = 64
-BN_TYPE = "bn"
+BN_TYPE = "ln"
 SEED = 0
 
 # plot the histogram
@@ -74,7 +74,7 @@ flow = build_model(device = DEVICE,
                     affine = AFFINE,
                     bn_type = BN_TYPE)
 print(flow)
-flow.load_state_dict(torch.load(MODEL_PATH + f"/model_epoch{EPOCH}.pt"))
+flow.load_state_dict(torch.load(RES_PATH + f"/model_epoch{EPOCH}.pt"))
 flow = flow.double()
 flow.eval()
 
@@ -100,7 +100,7 @@ for idx_0, idx_1 in tqdm(zip(indices_0, indices_1)):
     log_ll_lst.append(log_ll.item())
 log_ll_lst = np.array(log_ll_lst)
 
-plot_hist(save_path=MODEL_PATH, 
+plot_hist(save_path=RES_PATH, 
           arr=log_ll_lst, 
           key=f"log_ll-epoch{EPOCH}-interplolation")
 
@@ -122,7 +122,7 @@ for idx in tqdm(indices_0):
     log_ll_lst.append(log_ll.item())
 log_ll_lst = np.array(log_ll_lst)
 
-plot_hist(save_path=MODEL_PATH, 
+plot_hist(save_path=RES_PATH, 
           arr=log_ll_lst, 
           key=f"log_ll-epoch{EPOCH}-0")
 
@@ -144,6 +144,6 @@ for idx in tqdm(indices_1):
     log_ll_lst.append(log_ll.item())
 log_ll_lst = np.array(log_ll_lst)
 
-plot_hist(save_path=MODEL_PATH, 
+plot_hist(save_path=RES_PATH, 
           arr=log_ll_lst, 
           key=f"log_ll-epoch{EPOCH}-1")
