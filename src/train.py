@@ -17,7 +17,9 @@ from config import SCALE_REG
 def create_batches(dataset: Subset,
                    batch_size: int,
                    seed: int,
-                   method: str) -> list:
+                   method: str,
+                   pos_lbl: int,
+                   neg_lbl: int,) -> list:
     """create the batches
 
     Args:
@@ -25,6 +27,8 @@ def create_batches(dataset: Subset,
         batch_size: the batch size
         seed: the seed
         method: the method to create batches
+        pos_lbl: the label of positive samples.
+        neg_lbl: the label of negative samples.
 
     Return:
         the batches
@@ -35,15 +39,18 @@ def create_batches(dataset: Subset,
     logger.debug(f"inputs shape: {inputs.shape}; labels shape: {labels.shape}")
     # create the indices
     if method == "random":
-        indices = np.arange(len(dataset))
+        indices = np.where((labels == neg_lbl) | (labels == pos_lbl))[0]
         random.Random(seed).shuffle(indices)
-        batch_indices = np.array_split(indices, len(dataset) // batch_size)
+        batch_indices = np.array_split(indices, len(indices) // batch_size)
     elif method == "label":
         batch_indices = []
         for i, label in enumerate(range(len(dataset.classes))):
-            indices = np.where(labels == label)[0]
-            random.Random(seed + i).shuffle(indices)
-            batch_indices.append(np.array_split(indices, len(indices) // batch_size)[0])
+            if label == pos_lbl or label == neg_lbl:    
+                indices = np.where(labels == label)[0]
+                random.Random(seed + i).shuffle(indices)
+                batch_indices.append(np.array_split(indices, len(indices) // batch_size)[0])
+            else:
+                continue
     else:
         raise ValueError(f"unknown method: {method}")
     # create the batches
@@ -56,6 +63,8 @@ def create_batches(dataset: Subset,
 def train(save_path: str,
           device: torch.device,
           data_info,
+          pos_lbl: int,
+          neg_lbl: int,
           train_split: Subset,
           val_split: Subset,
           flow: nn.Module,
@@ -74,6 +83,8 @@ def train(save_path: str,
         save_path: path to save model.
         device: device to use.
         data_info: data information.
+        pos_lbl: the label of positive samples.
+        neg_lbl: the label of negative samples.
         train_split: train dataset.
         val_split: validation dataset.
         flow: realNVP model.
@@ -94,8 +105,8 @@ def train(save_path: str,
         os.makedirs(save_path)
     
     # define the dataloader
-    val_loader = DataLoader(val_split,
-        batch_size=batch_size, shuffle=False, num_workers=2)
+    val_batches = create_batches(val_split, batch_size, seed=0, 
+        method="random", pos_lbl=pos_lbl, neg_lbl=neg_lbl)
 
     # define the optimizer
     optimizer = optim.Adamax(flow.parameters(), lr=lr, 
@@ -119,7 +130,8 @@ def train(save_path: str,
         # train
         flow.train()
         train_loss_lst, train_log_ll_lst, train_bit_per_dim_lst = [], [], []
-        train_batches = create_batches(train_split, batch_size, epoch, method)
+        train_batches = create_batches(train_split, batch_size, 
+            epoch, method, pos_lbl, neg_lbl)
         for batch_idx, data_ in enumerate(train_batches, 1):
             x, _ = data_
             # log-determinant of Jacobian from the logit transform
@@ -160,7 +172,7 @@ def train(save_path: str,
         flow.eval()
         val_loss_lst, val_log_ll_lst, val_bit_per_dim_lst = [], [], []
         with torch.no_grad():
-            for batch_idx, data_ in enumerate(val_loader, 1):
+            for batch_idx, data_ in enumerate(val_batches, 1):
                 x, _ = data_
                 # log-determinant of Jacobian from the logit transform
                 x, log_det = logit_transform(x)
