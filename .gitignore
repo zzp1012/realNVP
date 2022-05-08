@@ -11,3 +11,5 @@ outs/
 # ignore data
 data/
 !src/data/
+# ignore .test
+*.test
