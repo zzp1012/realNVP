@@ -27,8 +27,10 @@ WEIGHT_NORM = 1
 COUPLING_BN = 1
 AFFINE = 1
 BATCH_SIZE = 64
-BN_TYPE = "ln"
+BN_TYPE = "bn"
 SEED = 0
+POS_LBL = 5
+NEG_LBL = 4
 
 # plot the histogram
 def plot_hist(save_path, arr, key, labels = None):
@@ -59,8 +61,8 @@ val_loader = DataLoader(val_split,
     batch_size=len(val_split), shuffle=False, num_workers=2)
 val_images, val_labels = next(iter(val_loader))
 # select the images with 0 or 1 as label
-indices_0 = np.where(val_labels == 0)[0][:SAMPLE_NUM]
-indices_1 = np.where(val_labels == 1)[0][:SAMPLE_NUM]
+indices_pos = np.where(val_labels == POS_LBL)[0][:SAMPLE_NUM]
+indices_neg = np.where(val_labels == NEG_LBL)[0][:SAMPLE_NUM]
 
 # load model
 flow = build_model(device = DEVICE,
@@ -79,12 +81,12 @@ flow = flow.double()
 flow.eval()
 
 log_ll_lst = []
-for idx_0, idx_1 in tqdm(zip(indices_0, indices_1)):
-    assert val_labels[idx_0] == 0
-    assert val_labels[idx_1] == 1
+for idx_pos, idx_neg in tqdm(zip(indices_pos, indices_neg)):
+    assert val_labels[idx_pos] == POS_LBL
+    assert val_labels[idx_neg] == NEG_LBL
 
     # get the data
-    x = 0.5 * val_images[idx_0] + 0.5 * val_images[idx_1]
+    x = 0.5 * val_images[idx_pos] + 0.5 * val_images[idx_neg]
     x = x.unsqueeze(0)
 
     # log-determinant of Jacobian from the logit transform
@@ -99,14 +101,15 @@ for idx_0, idx_1 in tqdm(zip(indices_0, indices_1)):
     # update the log_ll_lst
     log_ll_lst.append(log_ll.item())
 log_ll_lst = np.array(log_ll_lst)
+print(log_ll_lst.mean())
 
 plot_hist(save_path=RES_PATH, 
           arr=log_ll_lst, 
           key=f"log_ll-epoch{EPOCH}-interplolation")
 
 log_ll_lst = []
-for idx in tqdm(indices_0):
-    assert val_labels[idx] == 0
+for idx in tqdm(indices_pos):
+    assert val_labels[idx] == POS_LBL
     # get the data
     x = val_images[idx].unsqueeze(0)
 
@@ -121,14 +124,15 @@ for idx in tqdm(indices_0):
     log_ll = log_ll + log_det
     log_ll_lst.append(log_ll.item())
 log_ll_lst = np.array(log_ll_lst)
+print(log_ll_lst.mean())
 
 plot_hist(save_path=RES_PATH, 
           arr=log_ll_lst, 
-          key=f"log_ll-epoch{EPOCH}-0")
+          key=f"log_ll-epoch{EPOCH}-{POS_LBL}")
 
 log_ll_lst = []
-for idx in tqdm(indices_1):
-    assert val_labels[idx] == 1
+for idx in tqdm(indices_neg):
+    assert val_labels[idx] == NEG_LBL
     # get the data
     x = val_images[idx].unsqueeze(0)
 
@@ -143,7 +147,8 @@ for idx in tqdm(indices_1):
     log_ll = log_ll + log_det
     log_ll_lst.append(log_ll.item())
 log_ll_lst = np.array(log_ll_lst)
+print(log_ll_lst.mean())
 
 plot_hist(save_path=RES_PATH, 
           arr=log_ll_lst, 
-          key=f"log_ll-epoch{EPOCH}-1")
+          key=f"log_ll-epoch{EPOCH}-{NEG_LBL}")
