@@ -109,5 +109,6 @@ for alpha in alphas:
     std_log_ll.append(np.std(log_ll_lst))
 
 # save the results
+np.save(os.path.join(save_path, "alphas.npy"), alphas)
 np.save(os.path.join(save_path, "mean_log_ll.npy"), np.array(mean_log_ll))
 np.save(os.path.join(save_path, "std_log_ll.npy"), np.array(std_log_ll))
