@@ -1,4 +1,4 @@
-# realNVP
+# realNVP Custom
 _A PyTorch implementation of the training procedure of [Density Estimation Using Real NVP](https://arxiv.org/pdf/1605.08803.pdf)_. The original implementation in TensorFlow can be found at <https://github.com/tensorflow/models/tree/master/research/real_nvp>. 
 
 ## Imlementation Details
