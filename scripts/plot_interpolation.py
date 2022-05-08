@@ -27,10 +27,10 @@ WEIGHT_NORM = 1
 COUPLING_BN = 1
 AFFINE = 1
 BATCH_SIZE = 64
-BN_TYPE = "bn"
+BN_TYPE = "ln"
 SEED = 0
-POS_LBL = 5
-NEG_LBL = 4
+POS_LBL = 9
+NEG_LBL = 8
 
 # plot the histogram
 def plot_hist(save_path, arr, key, labels = None):
@@ -78,6 +78,7 @@ flow = build_model(device = DEVICE,
 print(flow)
 flow.load_state_dict(torch.load(RES_PATH + f"/model_epoch{EPOCH}.pt"))
 flow = flow.double()
+flow.order_matrix_1 = flow.order_matrix_1.double()
 flow.eval()
 
 log_ll_lst = []
