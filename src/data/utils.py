@@ -4,7 +4,8 @@ import torch.nn.functional as F
 import torch.distributions as distributions
 
 def logit_transform(x: torch.Tensor, 
-                    constraint: float=0.9, 
+                    device: torch.device, 
+                    constraint: float=0.9,
                     reverse: bool=False) -> tuple:
     '''Transforms data from [0, 1] into unbounded space.
 
@@ -13,6 +14,7 @@ def logit_transform(x: torch.Tensor,
 
     Args:
         x: input tensor.
+        device: torch.device
         constraint: data constraint before logit.
         reverse: True if transform data back to [0, 1].
     Returns:
@@ -31,7 +33,7 @@ def logit_transform(x: torch.Tensor,
         [B, C, H, W] = list(x.size())
         
         # dequantization
-        noise = distributions.Uniform(0., 1.).sample((B, C, H, W))
+        noise = distributions.Uniform(0., 1.).sample((B, C, H, W)).to(device)
         x = (x * 255. + noise) / 256.
         
         # restrict data
