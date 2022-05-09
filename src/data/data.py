@@ -22,7 +22,7 @@ class DataInfo():
         self.size = size
 
 def load_data(dataset: str,
-              root: str = "/data/zzp1012/realNVP/data") -> tuple:
+              root: str = "../data") -> tuple:
     """Load dataset.
 
     Args:
