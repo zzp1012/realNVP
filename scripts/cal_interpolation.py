@@ -5,8 +5,9 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 # Changable configs
-RES_PATH = "/data/zzp1012/realNVP/outs/0507/only67/label/0507-232725-mnist-7And6-seed0-blocks8-bottle0-ln-label-lr0.001-bs64-wd0.0/train"
-EPOCH = 6000
+RES_PATH = "/data2/zzp1012/realNVP-1/outs/0509/0and1/origin/label/0509-163600-mnist-1And0-seed0-blocks8-bottle0-ln-label-lr0.001-bs64-wd0.0/train"
+DATA_PATH = "/data2/zzp1012/realNVP-1/data"
+EPOCH = 20
 
 # import internal libs
 sys.path.insert(0, os.path.join(os.path.dirname(RES_PATH), "src/"))
@@ -17,8 +18,8 @@ from utils import set_seed
 
 DATASET = "mnist"
 DEVICE = torch.device("cuda:0")
-POS_LBL = 7
-NEG_LBL = 6
+POS_LBL = 1
+NEG_LBL = 0
 BASE_DIM = 64
 RES_BLOCKS = 8
 BOTTLENECK = 0
@@ -34,7 +35,7 @@ SEED = 0
 set_seed(SEED)
 
 # load data
-_, val_split, data_info = load_data(dataset = DATASET)
+_, val_split, data_info = load_data(dataset = DATASET, root = DATA_PATH)
 val_loader = DataLoader(val_split,
     batch_size=len(val_split), shuffle=False, num_workers=2)
 val_images, val_labels = next(iter(val_loader))
@@ -93,9 +94,8 @@ for alpha in alphas:
         x = alpha * val_images[idxes_pos] + (1 - alpha) * val_images[idxes_neg]
 
         # log-determinant of Jacobian from the logit transform
-        x, log_det = logit_transform(x)
         x = x.to(DEVICE).double()
-        log_det = log_det.to(DEVICE).double()
+        x, log_det = logit_transform(x, DEVICE)
 
         # log-likelihood
         log_ll, _ = flow(x)
