@@ -44,13 +44,15 @@ def create_batches(dataset: Subset,
         batch_indices = np.array_split(indices, len(indices) // batch_size)
     elif method == "label":
         batch_indices = []
-        for i, label in enumerate(range(len(dataset.classes))):
-            if label == pos_lbl or label == neg_lbl:    
-                indices = np.where(labels == label)[0]
-                random.Random(seed + i).shuffle(indices)
-                batch_indices.append(np.array_split(indices, len(indices) // batch_size)[0])
-            else:
-                continue
+        repeat_num = 300
+        for itr in range(1, repeat_num+1):
+            for i, label in enumerate(range(len(dataset.classes))):
+                if label == pos_lbl or label == neg_lbl:    
+                    indices = np.where(labels == label)[0]
+                    random.Random((seed - 1) * repeat_num + itr + i).shuffle(indices)
+                    batch_indices.append(np.array_split(indices, len(indices) // batch_size)[0])
+                else:
+                    continue
     else:
         raise ValueError(f"unknown method: {method}")
     # create the batches
@@ -134,10 +136,9 @@ def train(save_path: str,
             epoch, method, pos_lbl, neg_lbl)
         for batch_idx, data_ in enumerate(train_batches, 1):
             x, _ = data_
-            # log-determinant of Jacobian from the logit transform
-            x, log_det = logit_transform(x)
             x = x.to(device)
-            log_det = log_det.to(device)
+            # log-determinant of Jacobian from the logit transform
+            x, log_det = logit_transform(x, device)
 
             # log-likelihood of input minibatch
             log_ll, weight_scale = flow(x)
@@ -174,10 +175,9 @@ def train(save_path: str,
         with torch.no_grad():
             for batch_idx, data_ in enumerate(val_batches, 1):
                 x, _ = data_
-                # log-determinant of Jacobian from the logit transform
-                x, log_det = logit_transform(x)
                 x = x.to(device)
-                log_det = log_det.to(device)
+                # log-determinant of Jacobian from the logit transform
+                x, log_det = logit_transform(x, device)
 
                 # log-likelihood of input minibatch
                 log_ll, weight_scale = flow(x)
@@ -195,7 +195,7 @@ def train(save_path: str,
 
             # sample from the model
             samples = flow.sample(sample_size)
-            samples, _ = logit_transform(samples, reverse=True)
+            samples, _ = logit_transform(samples, device=device, reverse=True)
             image_path = os.path.join(save_path, f"samples")
             os.makedirs(image_path, exist_ok=True)
             save_image(make_grid(samples),
