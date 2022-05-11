@@ -2,22 +2,18 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-RES_PATH_LN = "/data/zzp1012/realNVP/outs/0506/only01/label/0505-220330-mnist-seed0-blocks8-bottle0-ln-label-lr0.001-bs64-wd0.0/train/interpolation/epoch6000"
-RES_PATH_BN = "/data/zzp1012/realNVP/outs/0506/only01/label/0505-220336-mnist-seed0-blocks8-bottle0-bn-label-lr0.001-bs64-wd0.0/train/interpolation/epoch6000"
+RES_PATH = "/data2/zzp1012/realNVP/outs/0509/interpolation/fewerblock/random/epoch100"
 
 # load the two means
-mean_ln = np.load(os.path.join(RES_PATH_LN, "mean_log_ll.npy"))
-mean_bn = np.load(os.path.join(RES_PATH_BN, "mean_log_ll.npy"))
+mean_ln = np.load(os.path.join(RES_PATH, "mean_log_ll_lst_ln.npy"))
+mean_bn = np.load(os.path.join(RES_PATH, "mean_log_ll_lst_bn.npy"))
 
 # load the two std
-std_ln = np.load(os.path.join(RES_PATH_LN, "std_log_ll.npy"))
-std_bn = np.load(os.path.join(RES_PATH_BN, "std_log_ll.npy"))
+std_ln = np.load(os.path.join(RES_PATH, "std_log_ll_lst_ln.npy"))
+std_bn = np.load(os.path.join(RES_PATH, "std_log_ll_lst_bn.npy"))
 
 # load the alphas
-alphas_ln = np.load(os.path.join(RES_PATH_LN, "alphas.npy"))
-alphas_bn = np.load(os.path.join(RES_PATH_BN, "alphas.npy"))
-assert np.allclose(alphas_ln, alphas_bn), "The two alphas are not the same!"
-alphas = alphas_ln
+alphas = np.load(os.path.join(RES_PATH, "alphas.npy"))
 
 # the 1 sigma upper and lower analytic population bounds
 lower_bound_ln = mean_ln - 1.0 * std_ln
@@ -35,6 +31,6 @@ ax.set_xlabel('alphas')
 ax.set_ylabel('log_ll')
 ax.grid()
 # save the fig
-path = os.path.join(".", "{}.png".format("interpolation"))
+path = os.path.join(RES_PATH, "{}.png".format("interpolation"))
 fig.savefig(path)
 plt.close()
