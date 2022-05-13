@@ -1,13 +1,17 @@
 import os, sys
 import torch
 import numpy as np
+import torchvision
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 # Changable configs
-RES_PATH = "/data2/zzp1012/realNVP/outs/0509/0and1/origin/random/bn/0509-202329-mnist-1And0-seed0-blocks8-bottle0-bn-random-lr0.001-bs64-wd0.0/train"
+RES_PATH = "/data2/zzp1012/realNVP/outs/0509/8and9/origin/random/ln/0510-071553-mnist-9And8-seed0-blocks8-bottle0-ln-random-lr0.001-bs64-wd0.0/train"
 DATA_PATH = "/data2/zzp1012/realNVP/data"
 EPOCH = 100
+POS_LBL = 9
+NEG_LBL = 8
+BN_TYPE = "ln"
 
 # import internal libs
 sys.path.insert(0, os.path.join(os.path.dirname(RES_PATH), "src/"))
@@ -16,10 +20,9 @@ from data.utils import logit_transform
 from model import build_model
 from utils import set_seed
 
+# fix
 DATASET = "mnist"
 DEVICE = torch.device("cuda:3")
-POS_LBL = 1
-NEG_LBL = 0
 BASE_DIM = 64
 RES_BLOCKS = 8
 BOTTLENECK = 0
@@ -28,8 +31,24 @@ WEIGHT_NORM = 1
 COUPLING_BN = 1
 AFFINE = 1
 BATCH_SIZE = 64
-BN_TYPE = "bn"
 SEED = 0
+
+def save_images(imgs: torch.Tensor, 
+                save_path: str,
+                filename: str,  
+                nrow: int = 1) -> None:
+    """save images.
+    Args:
+        imgs (torch.Tensor): the images to save.
+        save_path (str): the path to save images.
+        filename (str): the filename of images.
+        nrow (int): the number of images to save in a row.
+    Returns:
+        None
+    """
+    torchvision.utils.save_image(imgs, 
+                                 os.path.join(save_path, filename), 
+                                 nrow=nrow)
 
 # set the seed
 set_seed(SEED)
@@ -68,19 +87,19 @@ os.makedirs(save_path, exist_ok=True)
 # copy the script to the save path
 os.system(f"cp {os.path.abspath(__file__)} {save_path}")
 
+# create batches
+batch_size = 64
+np.random.seed(SEED) 
+indexes = np.arange(sample_num)
+np.random.shuffle(indexes)
+batches = np.array_split(indexes, round(sample_num / batch_size))
+
 # calculate the mean_log_ll and std_log_ll by different alpha
-alphas = np.linspace(0.0, 1.0, num=10)
+alphas = np.linspace(0.0, 1.0, num=11)
 mean_log_ll, std_log_ll = [], []
 for alpha in alphas:
-    # create batches
-    batch_size = 64
-    np.random.seed(SEED) 
-    indexes = np.arange(sample_num)
-    np.random.shuffle(indexes)
-    batches = np.array_split(indexes, round(sample_num / batch_size))
-
     log_ll_lst = []
-    for batch in tqdm(batches):
+    for batch_id, batch in enumerate(tqdm(batches)):
         # get the idxes
         idxes_pos = indices_pos[batch]
         idxes_neg = indices_neg[batch]
@@ -89,6 +108,12 @@ for alpha in alphas:
 
         # get the data
         x = alpha * val_images[idxes_pos] + (1 - alpha) * val_images[idxes_neg]
+
+        # plot some images
+        if alpha == 0 or alpha == 1 or alpha == 0.5:
+            save_image_path = os.path.join(save_path, "images", f"alpha{alpha}")
+            os.makedirs(save_image_path, exist_ok=True)
+            save_images(x[0], save_image_path, f"{batch_id}_images.png")
 
         # log-determinant of Jacobian from the logit transform
         x = x.to(DEVICE)
