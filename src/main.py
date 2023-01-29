@@ -27,10 +27,8 @@ def add_args() -> argparse.Namespace:
     ## the dataset
     parser.add_argument('--dataset', type=str, default='cifar10',
                         help='dataset to be modeled.')
-    parser.add_argument('--pos', type=int, default=1,
-                        help='positive label.')
-    parser.add_argument('--neg', type=int, default=0,
-                        help='negative label.')                    
+    parser.add_argument('--selected_lbls', type=int, default=[0, 1, 2], nargs='+',
+                        help='the selected labels.')        
     ## model settings
     parser.add_argument('--base_dim', type=int, default=64,
                         help='features in residual blocks of first few layers.')
@@ -78,7 +76,7 @@ def add_args() -> argparse.Namespace:
     exp_name = "-".join([DATE, 
                          MOMENT,
                          f"{args.dataset}",
-                         f"{args.pos}And{args.neg}",
+                         "lbls" + "+".join([str(lbl) for lbl in args.selected_lbls]),
                          f"seed{args.seed}",
                          f"blocks{args.res_blocks}",
                          f"bottle{args.bottleneck}",
@@ -137,8 +135,7 @@ def main():
     train(save_path = os.path.join(args.save_path, "train"),
           device = args.device,
           data_info = data_info,
-          pos_lbl = args.pos,
-          neg_lbl = args.neg,
+          selected_lbls = args.selected_lbls,
           train_split = train_split,
           val_split = val_split,
           flow = flow,

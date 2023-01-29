@@ -18,8 +18,7 @@ def create_batches(dataset: Subset,
                    batch_size: int,
                    seed: int,
                    method: str,
-                   pos_lbl: int,
-                   neg_lbl: int,) -> list:
+                   selected_lbls: list,) -> list:
     """create the batches
 
     Args:
@@ -33,13 +32,15 @@ def create_batches(dataset: Subset,
     Return:
         the batches
     """
+    assert len(selected_lbls) >= 2, \
+        f"len(selected_lbls) must be >= 2, but got {len(selected_lbls)}"
     logger = get_logger(f"{__name__}.create_batches")
     # use dataloader
     inputs, labels = next(iter(DataLoader(dataset, batch_size=len(dataset))))
     logger.debug(f"inputs shape: {inputs.shape}; labels shape: {labels.shape}")
     # create the indices
     if method == "random":
-        indices = np.where((labels == neg_lbl) | (labels == pos_lbl))[0]
+        indices = np.where(np.isin(labels, selected_lbls))[0]
         random.Random(seed).shuffle(indices)
         batch_indices = np.array_split(indices, len(indices) // batch_size)
     elif method == "label":
@@ -47,7 +48,7 @@ def create_batches(dataset: Subset,
         repeat_num = 300
         for itr in range(1, repeat_num+1):
             for i, label in enumerate(range(len(dataset.classes))):
-                if label == pos_lbl or label == neg_lbl:    
+                if label in selected_lbls:  
                     indices = np.where(labels == label)[0]
                     random.Random((seed - 1) * repeat_num + itr + i).shuffle(indices)
                     batch_indices.append(np.array_split(indices, len(indices) // batch_size)[0])
@@ -65,8 +66,7 @@ def create_batches(dataset: Subset,
 def train(save_path: str,
           device: torch.device,
           data_info,
-          pos_lbl: int,
-          neg_lbl: int,
+          selected_lbls: list,
           train_split: Subset,
           val_split: Subset,
           flow: nn.Module,
@@ -85,8 +85,7 @@ def train(save_path: str,
         save_path: path to save model.
         device: device to use.
         data_info: data information.
-        pos_lbl: the label of positive samples.
-        neg_lbl: the label of negative samples.
+        selected_lbls: selected labels.
         train_split: train dataset.
         val_split: validation dataset.
         flow: realNVP model.
@@ -108,7 +107,7 @@ def train(save_path: str,
     
     # define the dataloader
     val_batches = create_batches(val_split, batch_size, seed=0, 
-        method="random", pos_lbl=pos_lbl, neg_lbl=neg_lbl)
+        method="random", selected_lbls=selected_lbls)
 
     # define the optimizer
     optimizer = optim.Adamax(flow.parameters(), lr=lr, 
@@ -133,7 +132,7 @@ def train(save_path: str,
         flow.train()
         train_loss_lst, train_log_ll_lst, train_bit_per_dim_lst = [], [], []
         train_batches = create_batches(train_split, batch_size, 
-            epoch, method, pos_lbl, neg_lbl)
+            epoch, method, selected_lbls)
         for batch_idx, data_ in enumerate(train_batches, 1):
             x, _ = data_
             x = x.to(device)
